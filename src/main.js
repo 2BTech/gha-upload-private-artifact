@@ -1,5 +1,8 @@
 const core = require('@actions/core')
-const { wait } = require('./wait')
+
+const { upload } = require('./upload')
+
+const validNoFileOptions = ['warn', 'error', 'ignore']
 
 /**
  * The main function for the action.
@@ -7,18 +10,64 @@ const { wait } = require('./wait')
  */
 async function run() {
   try {
-    const ms = core.getInput('milliseconds', { required: true })
+    const artifact_name = core.getInput('name', { required: true })
+    const search_path = core.getInput('path', { required: true })
+    const if_no_files_found = core.getInput('if-no-files-found')
+    let compression_level = core.getInput('compression-level')
+    const include_hidden_files = core.getBooleanInput('include-hidden-files')
+    const method = 'SFTP'
+    const server = core.getInput('server', { required: true })
+    const user = core.getInput('user', { required: true })
+    const password = core.getInput('password')
+    const private_key = core.getInput('private-key')
+    let server_path = core.getInput('server-path')
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Waiting ${ms} milliseconds ...`)
+    if (compression_level) {
+      compression_level = parseInt(compression_level)
+      if (isNaN(compression_level)) {
+        core.setFailed('Invalid compression-level')
+      }
+      if (compression_level < 0 || compression_level > 9) {
+        core.setFailed('Invalid compression level. Valid values are 0-9')
+      }
+    }
 
-    // Log the current timestamp, wait, then log the new timestamp
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+    if (!validNoFileOptions.includes(if_no_files_found)) {
+      core.setFailed(
+        `Unrecognized 'if-no-files-found' input. Provide: ${if_no_files_found}`
+      )
+    }
 
-    // Set outputs for other workflow steps to use
-    core.setOutput('time', new Date().toTimeString())
+    if (server_path == '') {
+      const path_parts = [
+        process.env['GITHUB_REPOSITORY'],
+        process.env['GITHUB_REF'],
+        process.env['GITHUB_SHA'].slice(0, 7),
+        process.env['GITHUB_WORKFLOW'],
+        process.env['GITHUB_RUN_NUMBER']
+      ];
+      server_path = path_parts.join('/');
+      core.info(`Set server-path to default: ${ server_path }`);
+    }
+
+    /** @type {import('./upload').UploadArgs} */
+    const args = {
+      artifact_name,
+      search_path,
+      if_no_files_found,
+      compression_level,
+      include_hidden_files,
+      method,
+      sftp: {
+        user,
+        password,
+        private_key
+      },
+      server_path
+    }
+
+    await upload(args);
+
   } catch (error) {
     // Fail the workflow run if an error occurs
     core.setFailed(error.message)

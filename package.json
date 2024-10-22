@@ -1,16 +1,13 @@
 {
-  "name": "javascript-action",
-  "description": "GitHub Actions JavaScript Template",
-  "version": "0.0.0",
-  "author": "",
+  "name": "gha-upload-private-artifact",
+  "description": "Uploads an artifact to private storage",
+  "version": "0.1.0",
+  "author": "david@2btech.io",
   "private": true,
-  "homepage": "https://github.com/actions/javascript-action#readme",
+  "homepage": "https://github.com/2BTech/gha-upload-private-artifact#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/javascript-action.git"
-  },
-  "bugs": {
-    "url": "https://github.com/actions/javascript-action/issues"
+    "url": "git+https://github.com/2BTech/gha-upload-private-artifact.git"
   },
   "keywords": [
     "GitHub",
@@ -64,7 +61,10 @@
     ]
   },
   "dependencies": {
-    "@actions/core": "^1.10.1"
+    "@actions/core": "^1.10.1",
+    "@actions/glob": "^0.5.0",
+    "archiver": "^7.0.1",
+    "ssh2": "^1.16.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
