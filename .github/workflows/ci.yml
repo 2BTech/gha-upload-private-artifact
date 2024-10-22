@@ -53,12 +53,15 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
 
+      - run: echo $(date) >> test.txt
+
       - name: Test Local Action
         id: test-action
         uses: ./
         with:
-          milliseconds: 1000
-
-      - name: Print Output
-        id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+          name: test.zip
+          path: ./test.txt
+          server-path: /2BT-ARTIFACTS
+          server: ${{ secrets.server }}
+          username: ${{ secrets.username }}
+          password: ${{ secrets.password }}

@@ -100,7 +100,7 @@ function getMultiPathLCA(searchPaths) {
  */
 async function find_files(search_path, options) {
   const globber = await glob.create(search_path)
-  const raw_search_results = glob.create()
+  const raw_search_results = await globber.glob()
   const search_results = []
 
   const set = new Set()
