@@ -43,8 +43,11 @@ inputs:
   server:
     description: The URL of the server that will accept the data
   user:
+    description: The username to use for the SFTP connection
   password:
+    description: The password to use for the SFTP connection
   private-key:
+    description: The private key to use for the SFTP connection
   server-path:
     description: The path on the server to upload to
 
