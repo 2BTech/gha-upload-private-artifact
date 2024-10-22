@@ -38,16 +38,16 @@ async function run() {
       )
     }
 
-    if (server_path == '') {
+    if (server_path === '') {
       const path_parts = [
         process.env['GITHUB_REPOSITORY'],
         process.env['GITHUB_REF'],
         process.env['GITHUB_SHA'].slice(0, 7),
         process.env['GITHUB_WORKFLOW'],
         process.env['GITHUB_RUN_NUMBER']
-      ];
-      server_path = path_parts.join('/');
-      core.info(`Set server-path to default: ${ server_path }`);
+      ]
+      server_path = path_parts.join('/')
+      core.info(`Set server-path to default: ${server_path}`)
     }
 
     /** @type {import('./upload').UploadArgs} */
@@ -66,8 +66,7 @@ async function run() {
       server_path
     }
 
-    await upload(args);
-
+    await upload(args)
   } catch (error) {
     // Fail the workflow run if an error occurs
     core.setFailed(error.message)
