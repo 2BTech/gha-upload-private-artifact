@@ -53,6 +53,8 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
 
+      - run: apt update && apt install -y --no-install-recommends wget
+
       - run: |
           mkdir -p test_artifacts
           echo $(date) >> test_artifacts/test.txt
