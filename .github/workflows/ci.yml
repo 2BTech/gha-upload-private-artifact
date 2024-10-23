@@ -46,22 +46,25 @@ jobs:
 
   test-action:
     name: GitHub Actions Test
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
 
     steps:
       - name: Checkout
         id: checkout
         uses: actions/checkout@v4
 
-      - run: echo $(date) >> test.txt
+      - run: |
+          mkdir -p test_artifacts
+          echo $(date) >> test_artifacts/test.txt
+          wget -O test_artifacts/test.mp4 https://repo.library.stonybrook.edu/xmlui/bitstream/handle/11401/9656/rickroll.mp4
 
       - name: Test Local Action
         id: test-action
         uses: ./
         with:
           name: test.zip
-          path: ./test.txt
-          server-path: /2BT-ARTIFACTS
+          path: ./test_artifacts
+          server-root: /2BT-ARTIFACTS
           server: ${{ secrets.server }}
-          username: ${{ secrets.username }}
+          user: ${{ secrets.username }}
           password: ${{ secrets.password }}

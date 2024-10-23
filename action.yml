@@ -50,6 +50,10 @@ inputs:
     description: The private key to use for the SFTP connection
   server-path:
     description: The path on the server to upload to
+  server-root:
+    description: >
+      If the server-path isn't specified, then the default path is appended to
+      this directory to create the server-path
 
 # Define your outputs here.
 outputs:

@@ -14629,6 +14629,19 @@ function objectToString(o) {
 
 /***/ }),
 
+/***/ 4137:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+const binding = __nccwpck_require__(4240);
+
+module.exports = binding.getCPUInfo;
+
+
+/***/ }),
+
 /***/ 3201:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -42791,7 +42804,7 @@ const crypto = __nccwpck_require__(6113);
 
 let cpuInfo;
 try {
-  cpuInfo = __nccwpck_require__(7295)();
+  cpuInfo = __nccwpck_require__(4137)();
 } catch {}
 
 const { bindingAvailable, CIPHER_INFO, MAC_INFO } = __nccwpck_require__(5708);
@@ -43178,7 +43191,7 @@ let AESGCMDecipher;
 let ChaChaPolyDecipher;
 let GenericDecipher;
 try {
-  binding = __nccwpck_require__(9623);
+  binding = __nccwpck_require__(9041);
   ({ AESGCMCipher, ChaChaPolyCipher, GenericCipher,
      AESGCMDecipher, ChaChaPolyDecipher, GenericDecipher } = binding);
 } catch {}
@@ -58007,6 +58020,7 @@ async function run() {
     const password = core.getInput('password')
     const private_key = core.getInput('private-key')
     let server_path = core.getInput('server-path')
+    const server_root = core.getInput('server-root')
 
     if (compression_level) {
       compression_level = parseInt(compression_level)
@@ -58032,6 +58046,9 @@ async function run() {
         process.env['GITHUB_WORKFLOW'],
         process.env['GITHUB_RUN_NUMBER']
       ]
+      if (server_root !== '') {
+        path_parts.unshift(server_root)
+      }
       server_path = path_parts.join('/')
       core.info(`Set server-path to default: ${server_path}`)
     }
@@ -58045,6 +58062,7 @@ async function run() {
       include_hidden_files,
       method,
       sftp: {
+        server,
         user,
         password,
         private_key
@@ -58072,10 +58090,11 @@ module.exports = {
 const { debug, info, setFailed, error, warning } = __nccwpck_require__(2186)
 const glob = __nccwpck_require__(8090)
 const fs = __nccwpck_require__(7147)
-const { dirname, normalize, resolve } = __nccwpck_require__(1017)
+const { dirname, normalize } = __nccwpck_require__(1017)
+const resolve_fs = (__nccwpck_require__(1017).resolve)
 const { promisify } = __nccwpck_require__(3837)
 const archiver = __nccwpck_require__(3084)
-const { realpath } = __nccwpck_require__(3292)
+const { realpath, readdir } = __nccwpck_require__(3292)
 const { Client } = __nccwpck_require__(5869)
 const path = __nccwpck_require__(1017)
 
@@ -58170,7 +58189,7 @@ function getMultiPathLCA(searchPaths) {
  * @returns {SearchResults}
  */
 async function find_files(search_path, options) {
-  const globber = await glob.create(search_path)
+  const globber = await glob.create(search_path, options)
   const raw_search_results = await globber.glob()
   const search_results = []
 
@@ -58184,10 +58203,11 @@ async function find_files(search_path, options) {
     }
 
     search_results.push(result)
-    if (set.has(result)) {
+    if (set.has(result.toLowerCase())) {
       info(`Uploads are case insensitive. There is a collision at ${result}`)
     } else {
-      set.add(result)
+      set.add(result.toLowerCase())
+      debug(`Adding result to set: ${result.toLowerCase()}, ${set}`)
     }
   }
 
@@ -58213,22 +58233,82 @@ async function find_files(search_path, options) {
   }
 }
 
+const sftp_mkdir = sftp => async filepath => {
+  const p = new Promise((resolve, reject) => {
+    sftp.mkdir(filepath, mkdir_error => {
+      if (mkdir_error) {
+        reject(mkdir_error)
+      } else {
+        resolve()
+      }
+    })
+  })
+  return await p
+}
+
+const sftp_exists = sftp => async filepath => {
+  const p = new Promise((resolve, reject) => {
+    sftp.exists(filepath, resolve)
+  })
+  return await p
+}
+
+const sftp_mkdir_recursive =
+  sftp =>
+  async (filepath, separator = '/') => {
+    const exists = sftp_exists(sftp)
+    const mkdir = sftp_mkdir(sftp)
+
+    return await filepath
+      .split(separator)
+      .reduce(async (prev_path, path_part) => {
+        prev_path = await prev_path
+        prev_path = `${prev_path}${separator}${path_part}`
+
+        debug(`mkdir: ${prev_path}`)
+
+        if (await exists(prev_path)) {
+          // pass
+        } else {
+          await mkdir(prev_path)
+        }
+
+        return prev_path
+      })
+  }
+
+const sftp_put = sftp => async (local_path, server_path) => {
+  return await new Promise((resolve, reject) => {
+    sftp.fastPut(local_path, server_path, fErr => {
+      if (fErr) {
+        reject(fErr)
+      } else {
+        resolve()
+      }
+    })
+  })
+}
+
 /**
  * @param {UploadArgs} inputs
  */
 async function upload(inputs) {
-  const { files_to_upload, root_dir } = find_files(inputs.search_path, {
+  const { files_to_upload, root_dir } = await find_files(inputs.search_path, {
     excludeHiddenFiles: !inputs.include_hidden_files
   })
+
+  debug(files_to_upload)
+  debug(root_dir)
 
   if (files_to_upload.length === 0) {
     setFailed(`No files were found for ${inputs.search_path}`)
     return
   }
 
-  const zip_output_stream = fs.createWriteStream(
-    __dirname + inputs.artifact_name
-  )
+  const artifact_path = `${__dirname}/${inputs.artifact_name}`
+
+  debug(`Saving artifact to ${artifact_path}`)
+  const zip_output_stream = fs.createWriteStream(artifact_path)
   const archive = archiver('zip', {
     zlib: { level: inputs.compression_level }
   })
@@ -58243,12 +58323,16 @@ async function upload(inputs) {
     warning('Warning while zipping the artifact')
     info(zip_warning)
   })
-  archive.on('finish', () => debug('Finished zipping the artifact'))
+  archive.on('finish', async () => {
+    debug('Finished zipping the artifact')
+    const test_files = await readdir(__dirname)
+    debug(`Dir after zipping: ${__dirname} : ${test_files}`)
+  })
 
   for (let file of files_to_upload) {
     // Allows for absolute and relative paths
     file = normalize(file)
-    file = resolve(file)
+    file = resolve_fs(file)
     file = await realpath(file)
 
     archive.file(file, { name: file.replace(root_dir, '') })
@@ -58257,21 +58341,35 @@ async function upload(inputs) {
   await archive.finalize()
 
   const conn = new Client()
-  conn.on('ready', () => {
-    info('Established SSH tunnel to SFTP server')
-    conn.sftp((err, sftp) => {
-      if (err) {
-        info(err)
-        setFailed('Could not open SFTP connection')
-        throw err
-      }
+  const sftp_promise = new Promise((resolve, reject) => {
+    conn.on('ready', () => {
+      debug('Established SSH tunnel to SFTP server')
+      conn.sftp(async (err, sftp) => {
+        debug('Opened SFTP session')
+        if (err) {
+          error(err)
+          setFailed('Could not open SFTP connection')
+          reject(err)
+        }
 
-      sftp.fastPut(inputs.artifact_name, inputs.server_path)
+        try {
+          await sftp_mkdir_recursive(sftp)(inputs.server_path)
+          await sftp_put(sftp)(
+            artifact_path,
+            `${inputs.server_path}/${inputs.artifact_name}`
+          )
+          resolve()
+        } catch (sftp_error) {
+          reject(sftp_error)
+        } finally {
+          sftp.end()
+        }
+      })
     })
+    conn.on('close', () => debug('Closed SSH connection'))
+    conn.on('end', () => debug('Ended SSH connection'))
+    conn.on('error', ssh_error => reject(ssh_error))
   })
-  conn.on('close', () => info('Closed SFTP connection'))
-  conn.on('end', () => info('Ended SFTP connection'))
-  conn.on('error', sftp_error => error(`SFTP Error: ${sftp_error}`))
 
   conn.connect({
     host: inputs.sftp.server,
@@ -58280,7 +58378,16 @@ async function upload(inputs) {
     password: inputs.sftp.password
   })
 
-  info('Finished uploading artifact!')
+  // await new Promise((a, b) => setTimeout(a, 15000))
+  try {
+    await sftp_promise
+    info('Finished uploading artifact!')
+  } catch (sftp_error) {
+    error(sftp_error)
+    setFailed('Could not upload artifact')
+  }
+
+  conn.end()
 }
 
 module.exports = {
@@ -58290,19 +58397,17 @@ module.exports = {
 
 /***/ }),
 
-/***/ 9623:
-/***/ ((module) => {
+/***/ 4240:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-module.exports = eval("require")("./crypto/build/Release/sshcrypto.node");
-
+module.exports = require(__nccwpck_require__.ab + "build/Release/cpufeatures.node")
 
 /***/ }),
 
-/***/ 7295:
-/***/ ((module) => {
+/***/ 9041:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-module.exports = eval("require")("cpu-features");
-
+module.exports = require(__nccwpck_require__.ab + "lib/protocol/crypto/build/Release/sshcrypto.node")
 
 /***/ }),
 

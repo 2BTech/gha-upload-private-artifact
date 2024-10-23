@@ -21,6 +21,7 @@ async function run() {
     const password = core.getInput('password')
     const private_key = core.getInput('private-key')
     let server_path = core.getInput('server-path')
+    const server_root = core.getInput('server-root')
 
     if (compression_level) {
       compression_level = parseInt(compression_level)
@@ -46,6 +47,9 @@ async function run() {
         process.env['GITHUB_WORKFLOW'],
         process.env['GITHUB_RUN_NUMBER']
       ]
+      if (server_root !== '') {
+        path_parts.unshift(server_root)
+      }
       server_path = path_parts.join('/')
       core.info(`Set server-path to default: ${server_path}`)
     }
@@ -59,6 +63,7 @@ async function run() {
       include_hidden_files,
       method,
       sftp: {
+        server,
         user,
         password,
         private_key
