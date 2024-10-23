@@ -67,6 +67,6 @@ jobs:
           name: test.zip
           path: ./test_artifacts
           server-root: /2BT-ARTIFACTS
-          server: ${{ secrets.server }}
-          user: ${{ secrets.username }}
-          password: ${{ secrets.password }}
+          server: ${{ secrets.SFTP_SERVER_IP }}
+          user: ${{ secrets.SFTP_USERNAME }}
+          password: ${{ secrets.SFTP_PASSWORD }}
