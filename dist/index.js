@@ -58038,14 +58038,33 @@ async function run() {
       )
     }
 
+    let workflow_name = process.env['GITHUB_WORKFLOW']
+    if (workflow_name.includes('/')) {
+      // This is most likely a path, and we should just grab the file name
+      const file_name = workflow_name
+        .split('/')
+        .find(part => part.includes('yaml') || part.includes('yml'))
+      if (file_name) {
+        workflow_name = file_name
+      } else {
+        workflow_name = ''
+      }
+    }
+
+    let sha_part = process.env['GITHUB_SHA'].slice(0, 7)
+    if (process.env['GITHUB_REF_TYPE'] === 'tag') {
+      sha_part = ''
+    }
+
     if (server_path === '') {
       const path_parts = [
         process.env['GITHUB_REPOSITORY'],
-        process.env['GITHUB_REF'],
-        process.env['GITHUB_SHA'].slice(0, 7),
-        process.env['GITHUB_WORKFLOW'],
-        process.env['GITHUB_RUN_NUMBER']
-      ]
+        process.env['GITHUB_REF_NAME'],
+        sha_part,
+        workflow_name,
+        process.env['GITHUB_JOB']
+      ].filter(part => part)
+
       if (server_root !== '') {
         path_parts.unshift(server_root)
       }
@@ -58308,11 +58327,11 @@ async function upload(inputs) {
   const artifact_path = `${__dirname}/${inputs.artifact_name}`
 
   debug(`Saving artifact to ${artifact_path}`)
-  const zip_output_stream = fs.createWriteStream(artifact_path)
+  // const zip_output_stream = fs.createWriteStream(artifact_path)
   const archive = archiver('zip', {
     zlib: { level: inputs.compression_level }
   })
-  archive.pipe(zip_output_stream)
+  // archive.pipe(zip_output_stream)
 
   archive.on('error', zip_error => {
     error('An error occurred while zipping the artifact.')
@@ -58338,7 +58357,7 @@ async function upload(inputs) {
     archive.file(file, { name: file.replace(root_dir, '') })
   }
 
-  await archive.finalize()
+  // await archive.finalize()
 
   const conn = new Client()
   const sftp_promise = new Promise((resolve, reject) => {
@@ -58354,10 +58373,18 @@ async function upload(inputs) {
 
         try {
           await sftp_mkdir_recursive(sftp)(inputs.server_path)
-          await sftp_put(sftp)(
-            artifact_path,
+          // await sftp_put(sftp)(
+          //   artifact_path,
+          //   `${inputs.server_path}/${inputs.artifact_name}`
+          // )
+
+          const sftp_stream = sftp.createWriteStream(
             `${inputs.server_path}/${inputs.artifact_name}`
           )
+          archive.pipe(sftp_stream)
+
+          await archive.finalize()
+
           resolve()
         } catch (sftp_error) {
           reject(sftp_error)
@@ -58378,7 +58405,6 @@ async function upload(inputs) {
     password: inputs.sftp.password
   })
 
-  // await new Promise((a, b) => setTimeout(a, 15000))
   try {
     await sftp_promise
     info('Finished uploading artifact!')

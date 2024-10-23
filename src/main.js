@@ -39,14 +39,33 @@ async function run() {
       )
     }
 
+    let workflow_name = process.env['GITHUB_WORKFLOW']
+    if (workflow_name.includes('/')) {
+      // This is most likely a path, and we should just grab the file name
+      const file_name = workflow_name
+        .split('/')
+        .find(part => part.includes('yaml') || part.includes('yml'))
+      if (file_name) {
+        workflow_name = file_name
+      } else {
+        workflow_name = ''
+      }
+    }
+
+    let sha_part = process.env['GITHUB_SHA'].slice(0, 7)
+    if (process.env['GITHUB_REF_TYPE'] === 'tag') {
+      sha_part = ''
+    }
+
     if (server_path === '') {
       const path_parts = [
         process.env['GITHUB_REPOSITORY'],
-        process.env['GITHUB_REF'],
-        process.env['GITHUB_SHA'].slice(0, 7),
-        process.env['GITHUB_WORKFLOW'],
-        process.env['GITHUB_RUN_NUMBER']
-      ]
+        process.env['GITHUB_REF_NAME'],
+        sha_part,
+        workflow_name,
+        process.env['GITHUB_JOB']
+      ].filter(part => part)
+
       if (server_root !== '') {
         path_parts.unshift(server_root)
       }
