@@ -58327,11 +58327,10 @@ async function upload(inputs) {
   const artifact_path = `${__dirname}/${inputs.artifact_name}`
 
   debug(`Saving artifact to ${artifact_path}`)
-  // const zip_output_stream = fs.createWriteStream(artifact_path)
+
   const archive = archiver('zip', {
     zlib: { level: inputs.compression_level }
   })
-  // archive.pipe(zip_output_stream)
 
   archive.on('error', zip_error => {
     error('An error occurred while zipping the artifact.')
@@ -58357,8 +58356,6 @@ async function upload(inputs) {
     archive.file(file, { name: file.replace(root_dir, '') })
   }
 
-  // await archive.finalize()
-
   const conn = new Client()
   const sftp_promise = new Promise((resolve, reject) => {
     conn.on('ready', () => {
@@ -58373,10 +58370,6 @@ async function upload(inputs) {
 
         try {
           await sftp_mkdir_recursive(sftp)(inputs.server_path)
-          // await sftp_put(sftp)(
-          //   artifact_path,
-          //   `${inputs.server_path}/${inputs.artifact_name}`
-          // )
 
           const sftp_stream = sftp.createWriteStream(
             `${inputs.server_path}/${inputs.artifact_name}`
@@ -58398,12 +58391,16 @@ async function upload(inputs) {
     conn.on('error', ssh_error => reject(ssh_error))
   })
 
-  conn.connect({
+  const conn_info = {
     host: inputs.sftp.server,
     port: 22,
     username: inputs.sftp.user,
     password: inputs.sftp.password
-  })
+  }
+
+  debug(JSON.stringify(conn_info))
+
+  conn.connect(conn_info)
 
   try {
     await sftp_promise

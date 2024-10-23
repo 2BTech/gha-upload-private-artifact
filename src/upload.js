@@ -219,7 +219,7 @@ async function upload(inputs) {
   const artifact_path = `${__dirname}/${inputs.artifact_name}`
 
   debug(`Saving artifact to ${artifact_path}`)
-  
+
   const archive = archiver('zip', {
     zlib: { level: inputs.compression_level }
   })
@@ -283,12 +283,16 @@ async function upload(inputs) {
     conn.on('error', ssh_error => reject(ssh_error))
   })
 
-  conn.connect({
+  const conn_info = {
     host: inputs.sftp.server,
     port: 22,
     username: inputs.sftp.user,
     password: inputs.sftp.password
-  })
+  }
+
+  debug(JSON.stringify(conn_info))
+
+  conn.connect(conn_info)
 
   try {
     await sftp_promise
