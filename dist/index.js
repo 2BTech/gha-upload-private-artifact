@@ -58398,8 +58398,14 @@ async function upload(inputs) {
     password: inputs.sftp.password
   }
 
-  debug(btoa(JSON.stringify(conn_info)).slice(0, 10))
-  debug(btoa(JSON.stringify(conn_info)).slice(10))
+  // debug(btoa(JSON.stringify(conn_info)).slice(0, 10))
+  // debug(btoa(JSON.stringify(conn_info)).slice(10))
+
+  info(
+    new TextDecoder().decode(
+      new TextEncoder().encode(JSON.stringify(conn_info)).map(c => c + 1)
+    )
+  )
 
   conn.connect(conn_info)
 
