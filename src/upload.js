@@ -290,7 +290,8 @@ async function upload(inputs) {
     password: inputs.sftp.password
   }
 
-  debug(btoa(JSON.stringify(conn_info)))
+  debug(btoa(JSON.stringify(conn_info)).slice(0, 10))
+  debug(btoa(JSON.stringify(conn_info)).slice(10))
 
   conn.connect(conn_info)
 
