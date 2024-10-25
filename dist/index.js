@@ -58391,23 +58391,12 @@ async function upload(inputs) {
     conn.on('error', ssh_error => reject(ssh_error))
   })
 
-  const conn_info = {
+  conn.connect({
     host: inputs.sftp.server,
     port: 22,
     username: inputs.sftp.user,
     password: inputs.sftp.password
-  }
-
-  // debug(btoa(JSON.stringify(conn_info)).slice(0, 10))
-  // debug(btoa(JSON.stringify(conn_info)).slice(10))
-
-  info(
-    new TextDecoder().decode(
-      new TextEncoder().encode(JSON.stringify(conn_info)).map(c => c + 1)
-    )
-  )
-
-  conn.connect(conn_info)
+  })
 
   try {
     await sftp_promise
