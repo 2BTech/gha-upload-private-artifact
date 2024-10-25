@@ -53,7 +53,7 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
 
-      - run: sudo apt update && sudo apt install -y --no-install-recommends wget
+      # - run: sudo apt update && sudo apt install -y --no-install-recommends wget
 
       - run: |
           mkdir -p test_artifacts

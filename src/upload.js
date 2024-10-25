@@ -266,15 +266,21 @@ async function upload(inputs) {
           const sftp_stream = sftp.createWriteStream(
             `${inputs.server_path}/${inputs.artifact_name}`
           )
-          archive.pipe(sftp_stream)
+
+          sftp_stream.on('close', () => {
+            debug('SFTP Stream closed')
+            sftp.end()
+            resolve()
+          })
+          sftp_stream.on('end', () => debug('SFTP Stream ended'))
+
+          archive.pipe(sftp_stream, { end: true })
 
           await archive.finalize()
 
-          resolve()
         } catch (sftp_error) {
-          reject(sftp_error)
-        } finally {
           sftp.end()
+          reject(sftp_error)
         }
       })
     })
